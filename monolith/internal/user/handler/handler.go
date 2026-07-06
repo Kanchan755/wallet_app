@@ -69,3 +69,40 @@ func (h *UserHandler) UpdateUserProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, user)
 }
+
+func (h *UserHandler) Login(c *gin.Context) {
+	var req model.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "Invalid request body", err.Error()))
+		return
+	}
+	resp, err := h.svc.Login(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": "error",
+			"data":   nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    resp,
+	})
+
+}
+
+func (h *UserHandler) GetCurrentUser(c *gin.Context) {
+	userId := c.GetString("user_id")
+	user, err := h.svc.GetProfile(c.Request.Context(), userId)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   user,
+	})
+}
+
