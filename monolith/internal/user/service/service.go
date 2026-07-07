@@ -11,6 +11,7 @@ import (
 	customError "github.com/kanchan755/wallet_app/monolith/internal/errors"
 	"github.com/kanchan755/wallet_app/monolith/internal/user/model"
 	"github.com/kanchan755/wallet_app/monolith/internal/user/repository"
+	walletModel "github.com/kanchan755/wallet_app/monolith/internal/wallet/model"
 	walletRepo "github.com/kanchan755/wallet_app/monolith/internal/wallet/repository"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -42,7 +43,7 @@ func (s *userService) Register(ctx context.Context, req model.CreateUserRequest)
 	// Implement user registration logic here
 	// For example, you can create a new user and save it to the database using the repository
 	//1. check if the email already exists
-	existingUser, _ := s.repo.FindByEmail(ctx, req.Email)
+	existingUser, _ := s.UserRepo.FindByEmail(ctx, req.Email)
 	if existingUser != nil {
 		return nil, customError.NewAppError(http.StatusConflict, "Email already exists", "this email is already registered")
 	}
@@ -76,7 +77,7 @@ func (s *userService) Register(ctx context.Context, req model.CreateUserRequest)
 		return nil, customError.ErrInternalServerError
 	}
 	//Create a wallet for the new user
-	newWallet := &model.Wallet{
+	newWallet := &walletModel.Wallet{
 		ID:       uuid.New().String(),
 		UserID:   newUser.ID,
 		Balance:  0,

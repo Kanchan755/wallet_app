@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/kanchan755/wallet_app/monolith/internal/wallet/model"
 )
@@ -10,6 +11,7 @@ import (
 type WalletRepository interface {
 	CreateTx(ctx context.Context, tx *sql.Tx, w *model.Wallet) error
 	GetWalletByUserID(ctx context.Context, userID string) (*model.Wallet, error)
+	UpdateBalanceTx(ctx context.Context, tx *sql.Tx, walletID string, newBalance float64, currentVersion int) error
 }
 
 type mysqlWalletRepository struct {
@@ -44,4 +46,25 @@ func (r *mysqlWalletRepository) GetWalletByUserID(ctx context.Context, userID st
 		return nil, err
 	}
 	return &w, nil
+}
+
+func (r *mysqlWalletRepository) UpdateBalanceTx(ctx context.Context, tx *sql.Tx, walletID string, newBalance float64, currentVersion int) error {
+	query := `
+	UPDATE wallets
+	SET balance = ?, version = version + 1
+	WHERE id = ? AND version = ?
+	`
+	result, err := tx.ExecContext(ctx, query, newBalance, walletID, currentVersion)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	// if zero rows affected , it means database version has changed (concurrency conflict)
+	if rowsAffected == 0 {
+		return errors.New("concurrenct update detected: version mismatched")
+	}
+	return nil
 }

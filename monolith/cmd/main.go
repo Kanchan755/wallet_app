@@ -11,7 +11,7 @@ import (
 	userService "github.com/kanchan755/wallet_app/monolith/internal/user/service"
 	walletHandler "github.com/kanchan755/wallet_app/monolith/internal/wallet/handler"
 	walletRepository "github.com/kanchan755/wallet_app/monolith/internal/wallet/repository"
-	walletService "github.com/kanchan755/wallet_app/monolith/internal/wallet/service"ß
+	walletService "github.com/kanchan755/wallet_app/monolith/internal/wallet/service"
 )
 
 func main() {
@@ -36,13 +36,13 @@ func main() {
 	//inject db to user service for transaction
 	uSvc := userService.NewUserService(db,uRepo,wRepo)
 	uHandler := userHandler.NewUserHandler(uSvc)
-	wSvc := walletService.NewWalletService(wRepo
+	wSvc := walletService.NewWalletService(wRepo)
 	wHandler := walletHandler.NewWalletHandler(wSvc)
 
 	//2. Start the HTTP server
 	//r := gin.Default()
 	r := gin.New()
-	r.Use(gin.Logger(), middleware.RecoveryMiddleware(), middleware.ErrorHandler())
+	r.Use(gin.Logger(), gin.Recovery(), middleware.ErrorHandler())
 
 	// Define routes and handlers
 	v1 := r.Group("/api/v1")

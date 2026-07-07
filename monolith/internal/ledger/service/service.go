@@ -10,7 +10,7 @@ import (
 
 type LedgerService interface {
 	ReconcileWalletBalance(ctx context.Context, userID string) (bool, float64, float64, error)
-	GetMuationHistory(ctx context.Context, userID string) ([]model.Ledger, error)
+	GetMutationHistory(ctx context.Context, userID string) ([]model.Ledger, error)
 }
 
 type ledgerServiceImpl struct {

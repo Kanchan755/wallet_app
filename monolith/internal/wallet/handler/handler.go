@@ -11,7 +11,7 @@ type WalletHandler struct {
 	svc service.WalletService
 }
 
-func NewWalletHandler(svc service.WalletService) WalletHandler {
+func NewWalletHandler(svc service.WalletService) *WalletHandler {
 	return &WalletHandler{
 		svc: svc,
 	}
