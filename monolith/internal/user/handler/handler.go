@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	customError "github.com/kanchan755/wallet_app/monolith/internal/errors"
@@ -106,3 +109,66 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	})
 }
 
+func (h *UserHandler) DeleteAccount(c *gin.Context) {
+	userId := c.GetString("user_id")
+	err := h.svc.DeleteAccount(c.Request.Context(), userId)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusNoContent, gin.H{
+		"status":  "success",
+		"message": "account deleted successfully",
+	})
+}
+
+func (h *UserHandler) UpdateAvatar(c *gin.Context) {
+	userId := c.GetString("user_id")
+
+	//get the file from request mutltipart
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_REQUEST_BODY", "failed to upload file"))
+		return
+	}
+	defer file.Close()
+	// validate file format
+	if file.Size > 5*1024*1024 {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_REQUEST_BODY", "file size must be less than 5MB"))
+		return
+	}
+	//validate file content
+	ext := filepath.Ext(file.Filename)
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_REQUEST_BODY", "invalid file format"))
+		return
+	}
+
+	//folder for saving
+	uploadDir := "./uploads"
+	_ = os.MkdirAll(uploadDir, os.ModePerm)
+
+	//rename file based on user id
+	filename := fmt.Sprintf("%s%s", userId, ext)
+	savePath := filepath.Join(uploadDir, filename)
+
+	//save the file
+	if err = c.SaveUploadedFile(file, savePath); err != nil {
+		c.Error(customError.NewAppError(http.StatusInternalServerError, "FAILED_TO_SAVE_FILE", err.Error()))
+		return
+	}
+
+	//update url in database
+	avatarURL := "uploads/" + filename
+	if err := h.svc.UpdateAvatar(c.Request.Context(), userId, avatarURL); err != nil {
+		c.Error(customError.NewAppError(http.StatusInternalServerError, "FAILED_TO_UPDATE_AVATAR", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   avatarURL,
+	})
+
+}

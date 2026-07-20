@@ -22,6 +22,8 @@ type UserService interface {
 	GetProfile(ctx context.Context, id string) (*model.User, error)
 	UpdateProfile(ctx context.Context, id string, req model.UpdateUserRequest) (*model.User, error)
 	Login(ctx context.Context, req model.LoginRequest) (*model.LoginResponse, error)
+	UpdateAvatar(ctx context.Context, id string, path string) error
+	DeleteAccount(ctx context.Context, id string) error
 }
 
 type userService struct {
@@ -143,4 +145,37 @@ func (s *userService) Login(ctx context.Context, req model.LoginRequest) (*model
 		RefreshToken: refreshToken,
 	}, nil
 
+}
+
+func (s *userService) UpdateAvatar(ctx context.Context, id string, path string) error {
+	user, err := s.UserRepo.FindByID(ctx, id)
+	if err != nil {
+		return customError.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", "user not found")
+	}
+	if user == nil {
+		return customError.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", "user not found")
+	}
+
+	if err := s.UserRepo.UpdateAvatar(ctx, user.ID, path); err != nil {
+		return customError.NewAppError(http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to update avatar")
+	}
+
+	return nil
+}
+
+func (s *userService) DeleteAccount(ctx context.Context, id string) error {
+	user, err := s.UserRepo.FindByID(ctx, id)
+	if err != nil {
+		return customError.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", "user not found")
+	}
+
+	if user == nil {
+		return customError.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", "user not found")
+	}
+
+	if err := s.UserRepo.SoftDelete(ctx, id); err != nil {
+		return customError.NewAppError(http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to delete user")
+	}
+
+	return nil
 }

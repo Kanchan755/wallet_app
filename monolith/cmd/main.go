@@ -4,8 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kanchan755/wallet_app/monolith/internal/config"
 	"github.com/kanchan755/wallet_app/monolith/internal/database"
+	ledgerRepository "github.com/kanchan755/wallet_app/monolith/internal/ledger/repository"
+	ledgerService "github.com/kanchan755/wallet_app/monolith/internal/ledger/service"
 	"github.com/kanchan755/wallet_app/monolith/internal/logger"
 	"github.com/kanchan755/wallet_app/monolith/internal/middleware"
+	txHandler "github.com/kanchan755/wallet_app/monolith/internal/transaction/handler"
+	txRepository "github.com/kanchan755/wallet_app/monolith/internal/transaction/repository"
+	txService "github.com/kanchan755/wallet_app/monolith/internal/transaction/service"
 	userHandler "github.com/kanchan755/wallet_app/monolith/internal/user/handler"
 	userRepository "github.com/kanchan755/wallet_app/monolith/internal/user/repository"
 	userService "github.com/kanchan755/wallet_app/monolith/internal/user/service"
@@ -32,12 +37,18 @@ func main() {
 	//1.initiate layer
 	uRepo := userRepository.NewMySQLUserRepository(db)
 	wRepo := walletRepository.NewMySQLWalletRepository(db)
+	tRepo := txRepository.NewMySQLTransactionRepository(db)
+	lRepo := ledgerRepository.NewLedgerRepository(db)
 
 	//inject db to user service for transaction
-	uSvc := userService.NewUserService(db,uRepo,wRepo)
+	uSvc := userService.NewUserService(db, uRepo, wRepo)
 	uHandler := userHandler.NewUserHandler(uSvc)
 	wSvc := walletService.NewWalletService(wRepo)
 	wHandler := walletHandler.NewWalletHandler(wSvc)
+	tSvc := txService.NewTransactionService(db, tRepo, uRepo, wRepo, lRepo)
+	tHandler := txHandler.NewTransactionHandler(tSvc)
+	lSvc := ledgerService.NewLedgerService(lRepo, wRepo)
+	_ = lSvc // Keep ledger service for future integration
 
 	//2. Start the HTTP server
 	//r := gin.Default()
@@ -59,7 +70,10 @@ func main() {
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/users/me", uHandler.GetCurrentUser)
+			protected.POST("/users/me/avatar", uHandler.UpdateAvatar)
 			protected.GET("/wallets/me", wHandler.GetWalletByUserID)
+			protected.POST("/transfer", tHandler.Transfer)
+			protected.GET("/transactions/history", tHandler.GetHistory)
 		}
 	}
 

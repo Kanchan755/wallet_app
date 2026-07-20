@@ -14,6 +14,8 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
 	Update(ctx context.Context, user *model.User) error
 	CreateTx(ctx context.Context, tx *sql.Tx, u *model.User) error
+	UpdateAvatar(ctx context.Context, id string, path string) error
+	SoftDelete(ctx context.Context, id string) error
 }
 
 type mysqlUserRepository struct {
@@ -33,7 +35,7 @@ func (r *mysqlUserRepository) Create(ctx context.Context, u *model.User) error {
 }
 
 func (r *mysqlUserRepository) FindByID(ctx context.Context, id string) (*model.User, error) {
-	query := "SELECT id, full_name, email, password_hash, created_at, updated_at, deleted_at FROM users WHERE id = ?"
+	query := "SELECT id, full_name, email, password_hash, created_at, updated_at, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL"
 	row := r.db.QueryRowContext(ctx, query, id)
 
 	var u model.User
@@ -48,7 +50,7 @@ func (r *mysqlUserRepository) FindByID(ctx context.Context, id string) (*model.U
 }
 
 func (r *mysqlUserRepository) FindByEmail(ctx context.Context, email string) (*model.User, error) {
-	query := "SELECT id, full_name, email, password_hash, created_at, updated_at, deleted_at FROM users WHERE email = ?"
+	query := "SELECT id, full_name, email, password_hash, created_at, updated_at, deleted_at FROM users WHERE email = ? AND deleted_at IS NULL"
 	row := r.db.QueryRowContext(ctx, query, email)
 
 	var u model.User
@@ -63,7 +65,7 @@ func (r *mysqlUserRepository) FindByEmail(ctx context.Context, email string) (*m
 }
 
 func (r *mysqlUserRepository) Update(ctx context.Context, u *model.User) error {
-	query := "UPDATE users SET full_name = ?, email = ?, updated_at = ? WHERE id = ?"
+	query := "UPDATE users SET full_name = ?, email = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL"
 	_, err := r.db.ExecContext(ctx, query, u.FullName, u.Email, u.UpdatedAt, u.ID)
 	return err
 }
@@ -71,5 +73,21 @@ func (r *mysqlUserRepository) Update(ctx context.Context, u *model.User) error {
 func (r *mysqlUserRepository) CreateTx(ctx context.Context, tx *sql.Tx, u *model.User) error {
 	query := "INSERT INTO users (id, full_name, email, password_hash) VALUES (?, ?, ?, ?)"
 	_, err := tx.ExecContext(ctx, query, u.ID, u.FullName, u.Email, u.PasswordHash)
+	return err
+}
+
+func (r *mysqlUserRepository) UpdateAvatar(ctx context.Context, id string, path string) error {
+	query := `UPDATE users SET avatar_url = ? WHERE id = ? AND deleted_at IS NULL`
+	_, err := r.db.ExecContext(ctx, query, path, id)
+	return err
+}
+
+func (r *mysqlUserRepository) SoftDelete(ctx context.Context, id string) error {
+	query := `
+		UPDATE users
+		SET deleted_at = NOW()
+		WHERE id = ? AND deleted_at IS NULL
+	`
+	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }

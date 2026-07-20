@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	customError "github.com/kanchan755/wallet_app/monolith/internal/errors"
@@ -17,6 +18,7 @@ import (
 
 type TransactionService interface {
 	Transfer(ctx context.Context, senderUserID string, req txModel.TransferRequest) (*txModel.Transaction, error)
+	GetHistory(ctx context.Context, userID string, params *txModel.PaginationParams) ([]txModel.Transaction, *txModel.PaginationMeta, error)
 }
 
 type transactionServiceImpl struct {
@@ -144,5 +146,38 @@ func (s *transactionServiceImpl) Transfer(ctx context.Context, senderUserID stri
 		return nil, customError.NewAppError(http.StatusInternalServerError, "DB_ERROR", "Failed to commit transaction")
 	}
 
+	transaction.CreatedAt = time.Now()
 	return transaction, nil
+}
+
+func (s *transactionServiceImpl) GetHistory(ctx context.Context, userID string, params *txModel.PaginationParams) ([]txModel.Transaction, *txModel.PaginationMeta, error) {
+
+	wallet, err := s.walletRepo.GetWalletByUserID(ctx, userID)
+	if err != nil {
+		return nil, nil, customError.NewAppError(http.StatusNotFound, "WALLET_NOT_FOUND", "Wallet not found")
+	}
+
+	// max limit
+	if params.Limit > 100 {
+		params.Limit = 100
+	}
+
+	transaction, total, err := s.txRepo.GetHistory(ctx, wallet.ID, params)
+
+	if err != nil {
+		return nil, nil, customError.NewAppError(http.StatusInternalServerError, "DB_ERROR", "Failed to get transaction history")
+	}
+
+	totalPage := int(total / int64(params.Limit))
+	if total%int64(params.Limit) != 0 {
+		totalPage++
+	}
+	meta := &txModel.PaginationMeta{
+		Page:      params.Page,
+		Limit:     params.Limit,
+		TotalData: total,
+		TotalPage: totalPage,
+	}
+
+	return transaction, meta, nil
 }
