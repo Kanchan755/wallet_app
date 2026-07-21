@@ -34,6 +34,13 @@ func main() {
 	defer db.Close()
 	logger.Log.Info("Application Succesfully initilaized ")
 
+	// connect to redis
+	rdb, err := database.ConnectedRedis(cfg.RedisAddr)
+	if err != nil {
+		logger.Log.Error("ciritical Error: Could not connect to Redis", "error", err.Error())
+	}
+	defer rdb.Close()
+
 	//1.initiate layer
 	uRepo := userRepository.NewMySQLUserRepository(db)
 	wRepo := walletRepository.NewMySQLWalletRepository(db)
@@ -43,9 +50,9 @@ func main() {
 	//inject db to user service for transaction
 	uSvc := userService.NewUserService(db, uRepo, wRepo)
 	uHandler := userHandler.NewUserHandler(uSvc)
-	wSvc := walletService.NewWalletService(wRepo)
+	wSvc := walletService.NewWalletService(wRepo, rdb)
 	wHandler := walletHandler.NewWalletHandler(wSvc)
-	tSvc := txService.NewTransactionService(db, tRepo, uRepo, wRepo, lRepo)
+	tSvc := txService.NewTransactionService(db, rdb, tRepo, uRepo, wRepo, lRepo)
 	tHandler := txHandler.NewTransactionHandler(tSvc)
 	lSvc := ledgerService.NewLedgerService(lRepo, wRepo)
 	_ = lSvc // Keep ledger service for future integration

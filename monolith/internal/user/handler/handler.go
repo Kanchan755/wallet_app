@@ -132,7 +132,6 @@ func (h *UserHandler) UpdateAvatar(c *gin.Context) {
 		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_REQUEST_BODY", "failed to upload file"))
 		return
 	}
-	defer file.Close()
 	// validate file format
 	if file.Size > 5*1024*1024 {
 		c.Error(customError.NewAppError(http.StatusBadRequest, "INVALID_REQUEST_BODY", "file size must be less than 5MB"))

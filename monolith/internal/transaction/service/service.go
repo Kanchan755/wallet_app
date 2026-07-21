@@ -10,10 +10,12 @@ import (
 	customError "github.com/kanchan755/wallet_app/monolith/internal/errors"
 	ledgerModel "github.com/kanchan755/wallet_app/monolith/internal/ledger/model"
 	ledgerRepo "github.com/kanchan755/wallet_app/monolith/internal/ledger/repository"
+	"github.com/kanchan755/wallet_app/monolith/internal/logger"
 	txModel "github.com/kanchan755/wallet_app/monolith/internal/transaction/model"
 	"github.com/kanchan755/wallet_app/monolith/internal/transaction/repository"
 	userRepo "github.com/kanchan755/wallet_app/monolith/internal/user/repository"
 	walletRepo "github.com/kanchan755/wallet_app/monolith/internal/wallet/repository"
+	"github.com/redis/go-redis/v9"
 )
 
 type TransactionService interface {
@@ -27,10 +29,12 @@ type transactionServiceImpl struct {
 	userRepo   userRepo.UserRepository
 	walletRepo walletRepo.WalletRepository
 	ledgerRepo ledgerRepo.LedgerRepository
+	rdb        *redis.Client
 }
 
 func NewTransactionService(
 	db *sql.DB,
+	rdb *redis.Client,
 	txRepo repository.TransactionRepository,
 	userRepo userRepo.UserRepository,
 	walletRepo walletRepo.WalletRepository,
@@ -38,6 +42,7 @@ func NewTransactionService(
 ) TransactionService {
 	return &transactionServiceImpl{
 		db:         db,
+		rdb:        rdb,
 		txRepo:     txRepo,
 		userRepo:   userRepo,
 		walletRepo: walletRepo,
@@ -147,6 +152,17 @@ func (s *transactionServiceImpl) Transfer(ctx context.Context, senderUserID stri
 	}
 
 	transaction.CreatedAt = time.Now()
+
+	//invalidate cache
+	senderCachekey := "wallet:user:" + senderUserID
+	receiverCachekey := "wallet:user:" + recieverUser.ID
+
+	//delete the cache keys asynchronously (dont block http response)
+	go func() {
+		logger.Info(ctx, "Deleting cache asynchronously", "sender_id", senderUserID, "receiver_id", recieverUser.ID)
+		s.rdb.Del(context.Background(), senderCachekey)
+		s.rdb.Del(context.Background(), receiverCachekey)
+	}()
 	return transaction, nil
 }
 

@@ -8,7 +8,8 @@ import (
 )
 
 type Config struct {
-	DBDSN string
+	DBDSN     string
+	RedisAddr string
 }
 
 func Loadconfig() *Config {
@@ -19,7 +20,10 @@ func Loadconfig() *Config {
 
 	dsn := os.Getenv("DB_USER") + ":" + os.Getenv("DB_PASSWORD") + "@tcp(" + os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + ")/" + os.Getenv("DB_NAME") + "?parseTime=true"
 
+	redisAddr := os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
+
 	return &Config{
-		DBDSN: dsn,
+		DBDSN:     dsn,
+		RedisAddr: redisAddr,
 	}
 }
